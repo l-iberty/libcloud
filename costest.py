@@ -30,6 +30,11 @@ cos_secret_key = os.environ["COS_DEV_SECRET_KEY"]
 
 driver = cls(key=cos_secret_id, secret=cos_secret_key, host=cos_endpoint)
 
+try:
+    driver.create_container(container_name=cos_bucket)
+except Exception as e:
+    print(e)
+
 container = driver.get_container(container_name=cos_bucket)
 
 # 生成50MB的文件测试分块上传下载

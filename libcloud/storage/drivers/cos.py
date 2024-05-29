@@ -112,8 +112,8 @@ REGION_TO_HOST_MAP = {
 }
 
 API_VERSION = "2006-03-01"
-S3_NAMESPACE = "http://s3.amazonaws.com/doc/%s/" % (API_VERSION)
-NAMESPACE = "http://www.qcloud.com/document/product/436/7751"
+NAMESPACE = "http://s3.amazonaws.com/doc/%s/" % (API_VERSION)
+COS_NAMESPACE = "http://www.qcloud.com/document/product/436/7751"
 
 # AWS multi-part chunks must be minimum 5MB
 CHUNK_SIZE = 5 * 1024 * 1024
@@ -371,7 +371,7 @@ class BaseS3StorageDriver(StorageDriver):
 
             objects = self._to_objs(obj=response.object, xpath="Contents", container=container)
             is_truncated = response.object.findtext(
-                fixxpath(xpath="IsTruncated", namespace=S3_NAMESPACE)
+                fixxpath(xpath="IsTruncated", namespace=self.namespace)
             ).lower()
             exhausted = is_truncated == "false"
 
@@ -761,7 +761,10 @@ class BaseS3StorageDriver(StorageDriver):
 
         # Get the server's etag to be passed back to the caller
         body = response.parse_body()
-        server_hash = body.find(fixxpath(xpath="ETag", namespace=self.namespace)).text
+        r = body.find(fixxpath(xpath="ETag", namespace=self.namespace))
+        if r is None:
+            r = body.find(fixxpath(xpath="ETag", namespace=COS_NAMESPACE))
+        server_hash = r.text
         return server_hash
 
     def _abort_multipart(self, container, object_name, upload_id):
@@ -1134,24 +1137,24 @@ class BaseS3StorageDriver(StorageDriver):
         return headers
 
     def _to_containers(self, obj, xpath):
-        for element in obj.findall(fixxpath(xpath=xpath, namespace=S3_NAMESPACE)):
+        for element in obj.findall(fixxpath(xpath=xpath, namespace=self.namespace)):
             yield self._to_container(element)
 
     def _to_objs(self, obj, xpath, container):
         return [
             self._to_obj(element, container)
-            for element in obj.findall(fixxpath(xpath=xpath, namespace=S3_NAMESPACE))
+            for element in obj.findall(fixxpath(xpath=xpath, namespace=self.namespace))
         ]
 
     def _to_container(self, element):
         extra = {
             "creation_date": findtext(
-                element=element, xpath="CreationDate", namespace=S3_NAMESPACE
+                element=element, xpath="CreationDate", namespace=self.namespace
             )
         }
 
         container = Container(
-            name=findtext(element=element, xpath="Name", namespace=S3_NAMESPACE),
+            name=findtext(element=element, xpath="Name", namespace=self.namespace),
             extra=extra,
             driver=self,
         )
@@ -1214,18 +1217,18 @@ class BaseS3StorageDriver(StorageDriver):
         return obj
 
     def _to_obj(self, element, container):
-        owner_id = findtext(element=element, xpath="Owner/ID", namespace=S3_NAMESPACE)
+        owner_id = findtext(element=element, xpath="Owner/ID", namespace=self.namespace)
         owner_display_name = findtext(
-            element=element, xpath="Owner/DisplayName", namespace=S3_NAMESPACE
+            element=element, xpath="Owner/DisplayName", namespace=self.namespace
         )
         meta_data = {"owner": {"id": owner_id, "display_name": owner_display_name}}
-        last_modified = findtext(element=element, xpath="LastModified", namespace=S3_NAMESPACE)
+        last_modified = findtext(element=element, xpath="LastModified", namespace=self.namespace)
         extra = {"last_modified": last_modified}
 
         obj = Object(
-            name=findtext(element=element, xpath="Key", namespace=S3_NAMESPACE),
-            size=int(findtext(element=element, xpath="Size", namespace=S3_NAMESPACE)),
-            hash=findtext(element=element, xpath="ETag", namespace=S3_NAMESPACE).replace('"', ""),
+            name=findtext(element=element, xpath="Key", namespace=self.namespace),
+            size=int(findtext(element=element, xpath="Size", namespace=self.namespace)),
+            hash=findtext(element=element, xpath="ETag", namespace=self.namespace).replace('"', ""),
             extra=extra,
             meta_data=meta_data,
             container=container,
