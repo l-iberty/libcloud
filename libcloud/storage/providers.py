@@ -87,6 +87,7 @@ DRIVERS = {
         "BackblazeB2StorageDriver",
     ),
     Provider.ALIYUN_OSS: ("libcloud.storage.drivers.oss", "OSSStorageDriver"),
+    Provider.TENCENT_COS: ("libcloud.storage.drivers.cos", "S3StorageDriver"),
     Provider.DIGITALOCEAN_SPACES: (
         "libcloud.storage.drivers.digitalocean_spaces",
         "DigitalOceanSpacesStorageDriver",
